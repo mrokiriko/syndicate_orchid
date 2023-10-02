@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Orchid\Filters;
 
+use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Arr;
@@ -77,7 +77,8 @@ class HttpFilter
 
         $this
             ->addFiltersToQuery($builder)
-            ->addSortsToQuery($builder);
+            ->addSortsToQuery($builder)
+            ->addScopeSortToQuery($builder);
 
         return $builder;
     }
@@ -141,6 +142,35 @@ class HttpFilter
                     $safe = $this->sanitize($column->toString());
 
                     $builder->orderBy($safe, $descending);
+                }
+            });
+
+        return $this;
+    }
+
+    /**
+     * @param Builder $builder
+     *
+     * @return HttpFilter
+     * @throws BindingResolutionException
+     */
+    protected function addScopeSortToQuery(Builder $builder): self
+    {
+        /** @var Collection $scopeSorts */
+        $scopeSorts = $this->options->get('scopeSorts');
+
+        $this->sorts
+            ->map(fn (string $sort) => Str::of($sort))
+            ->each(function (Stringable $sort) use ($builder, $scopeSorts) {
+                $descending = $sort->startsWith('-') ? 'desc' : 'asc';
+
+                $column = Str::of($sort)->ltrim('-')->replace('.', '->');
+                $key = $column->before('->');
+
+                if ($sort = $scopeSorts->get($key->toString())) {
+                    $safe = $this->sanitize($column->toString());
+
+                    $builder->sortApply(app()->make($sort, ['column' => $safe, 'direction' => $descending]));
                 }
             });
 

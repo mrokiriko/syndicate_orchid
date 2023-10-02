@@ -52,6 +52,11 @@ trait Filterable
             : $this->scopeFiltersApplySelection($builder, $kit);
     }
 
+    public function scopeSortApply(Builder $query, Sort $sort): Builder
+    {
+        return $sort->run($query);
+    }
+
     /**
      * @return Builder
      */
@@ -69,6 +74,7 @@ trait Filterable
         return collect([
             'allowedFilters' => collect($this->allowedFilters ?? []),
             'allowedSorts'   => collect($this->allowedSorts ?? []),
+            'scopeSorts'     => collect($this->scopeSorts ?? [])
         ]);
     }
 }
